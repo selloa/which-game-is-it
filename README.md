@@ -1,5 +1,5 @@
 # Which game is it?
-
+ 
 Single-file browser quiz built from the dialog extracts in `docs/games/`.
 
 ### How to play

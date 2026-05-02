@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Which game is it?</title>
+  <style>
+    :root {
+      --bg: #14110f;
+      --panel: #1d1916;
+      --panel-2: #25201c;
+      --border: #3a3128;
+      --text: #efe7d8;
+      --muted: #9c8e7a;
+      --accent: #e0a96d;
+      --good: #6ec56e;
+      --bad: #d47474;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.45;
+      min-height: 100vh;
+    }
+    .wrap {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 18px 16px 64px;
+    }
+    header {
+      margin-bottom: 18px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .header-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: 0.02em;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    .score {
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      font-size: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    .score-part strong { font-weight: 600; }
+    .score-part.ok strong { color: var(--good); }
+    .score-part.bad strong { color: var(--bad); }
+
+    .mode-bar {
+      margin-top: 12px;
+    }
+    .mode-toggle {
+      appearance: none;
+      cursor: pointer;
+      background: var(--panel);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
+    }
+    .mode-toggle:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+    .mode-toggle[aria-pressed="true"] {
+      border-color: var(--accent);
+      background: rgba(224, 169, 109, 0.14);
+      color: var(--accent);
+    }
+    .mode-toggle:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .preview {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+    }
+    .preview .line {
+      font-family: "JetBrains Mono", "Fira Code", "Consolas", "Menlo", monospace;
+      font-size: 15px;
+      padding: 8px 0;
+      border-bottom: 1px dashed var(--border);
+    }
+    .preview .line:last-child { border-bottom: none; }
+
+    .question {
+      color: var(--muted);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin: 4px 2px 8px;
+    }
+
+    .choices {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+    @media (min-width: 520px) {
+      .choices { grid-template-columns: 1fr 1fr; }
+    }
+    .choice {
+      appearance: none;
+      cursor: pointer;
+      text-align: left;
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font: inherit;
+      font-size: 15px;
+      transition: background 0.12s ease, border-color 0.12s ease, transform 0.06s ease;
+      min-height: 48px;
+    }
+    .choice:hover:not(:disabled) { background: var(--panel-2); border-color: var(--accent); }
+    .choice:active:not(:disabled) { transform: translateY(1px); }
+    .choice:disabled { cursor: default; opacity: 0.85; }
+    .choice.correct { border-color: var(--good); background: rgba(110, 197, 110, 0.12); color: var(--good); }
+    .choice.wrong { border-color: var(--bad); background: rgba(212, 116, 116, 0.12); color: var(--bad); }
+
+    .reveal {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+    }
+    .reveal.hidden { display: none; }
+    .reveal-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 10px;
+    }
+    .reveal-title { font-size: 16px; font-weight: 600; color: var(--accent); }
+    .reveal-room { color: var(--muted); font-size: 13px; }
+    .reveal-path { color: var(--muted); font-size: 11px; font-family: "JetBrains Mono", "Consolas", monospace; }
+    .verdict { font-size: 14px; padding-bottom: 10px; }
+    .verdict.good { color: var(--good); }
+    .verdict.bad { color: var(--bad); }
+    .scene {
+      max-height: 50vh;
+      overflow: auto;
+      font-family: "JetBrains Mono", "Fira Code", "Consolas", "Menlo", monospace;
+      font-size: 14px;
+    }
+    .scene .row {
+      padding: 6px 0;
+      border-bottom: 1px dashed var(--border);
+    }
+    .scene .row:last-child { border-bottom: none; }
+    .scene .row.preview-line { background: rgba(224, 169, 109, 0.08); padding-left: 6px; padding-right: 6px; border-radius: 4px; }
+    .scene .speaker { color: var(--accent); font-weight: 600; margin-right: 8px; }
+
+    .controls { display: flex; justify-content: flex-end; gap: 8px; }
+    .btn {
+      appearance: none;
+      cursor: pointer;
+      background: var(--accent);
+      color: #1b150e;
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 18px;
+      font: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      transition: opacity 0.12s ease, transform 0.06s ease;
+    }
+    .btn:hover { opacity: 0.92; }
+    .btn:active { transform: translateY(1px); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .empty {
+      padding: 40px 16px;
+      text-align: center;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="header-row">
+        <h1>Which game is it?</h1>
+        <div class="score" id="score" aria-live="polite">
+          <span class="score-part ok">Correct <strong id="scoreCorrect">0</strong></span>
+          <span class="score-part bad">Wrong <strong id="scoreWrong">0</strong></span>
+        </div>
+      </div>
+      <div class="mode-bar">
+        <button type="button" class="mode-toggle" id="easyModeBtn" aria-pressed="false">
+          Easy mode: Off
+        </button>
+      </div>
+    </header>
+
+    <div id="app">
+      <div class="empty" id="loadingMsg">Loading rounds...</div>
+    </div>
+  </div>
+
+  <script src="rounds.js"></script>
+  <script>
+    (function () {
+      var data = window.QUIZ_DATA;
+      var app = document.getElementById("app");
+      var scoreCorrectEl = document.getElementById("scoreCorrect");
+      var scoreWrongEl = document.getElementById("scoreWrong");
+      var easyModeBtn = document.getElementById("easyModeBtn");
+
+      if (!data || !Array.isArray(data.rounds) || data.rounds.length === 0) {
+        app.innerHTML = '<div class="empty">No rounds found. Run <code>python build_rounds.py</code> next to this file.</div>';
+        return;
+      }
+
+      var gamesById = {};
+      data.games.forEach(function (g) { gamesById[g.id] = g; });
+      var allGameIds = data.games.map(function (g) { return g.id; });
+
+      var bag = [];
+      var bagPos = 0;
+
+      function refillBag() {
+        bag = data.rounds.slice();
+        for (var i = bag.length - 1; i > 0; i--) {
+          var j = Math.floor(Math.random() * (i + 1));
+          var tmp = bag[i]; bag[i] = bag[j]; bag[j] = tmp;
+        }
+        bagPos = 0;
+      }
+      refillBag();
+
+      var state = { correct: 0, wrong: 0, current: null, answered: false, easyMode: false };
+
+      function syncEasyModeUi() {
+        if (!easyModeBtn) return;
+        easyModeBtn.setAttribute("aria-pressed", state.easyMode ? "true" : "false");
+        easyModeBtn.textContent = state.easyMode ? "Easy mode: On" : "Easy mode: Off";
+        easyModeBtn.disabled = state.answered;
+      }
+
+      function syncScore() {
+        scoreCorrectEl.textContent = String(state.correct);
+        scoreWrongEl.textContent = String(state.wrong);
+      }
+
+      function nextRound() {
+        if (bagPos >= bag.length) refillBag();
+        state.current = bag[bagPos++];
+        state.answered = false;
+        render();
+      }
+
+      function pickDistractors(correctId) {
+        var pool = allGameIds.filter(function (id) { return id !== correctId; });
+        for (var i = pool.length - 1; i > 0; i--) {
+          var j = Math.floor(Math.random() * (i + 1));
+          var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+        }
+        return pool.slice(0, 3);
+      }
+
+      function shuffle(arr) {
+        var copy = arr.slice();
+        for (var i = copy.length - 1; i > 0; i--) {
+          var j = Math.floor(Math.random() * (i + 1));
+          var tmp = copy[i]; copy[i] = copy[j]; copy[j] = tmp;
+        }
+        return copy;
+      }
+
+      function escapeHtml(s) {
+        return String(s == null ? "" : s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      function render() {
+        var r = state.current;
+        var choices = state.easyMode
+          ? shuffle([r.gameId].concat(pickDistractors(r.gameId)))
+          : shuffle(allGameIds.slice());
+
+        var html = '';
+        html += '<div class="preview">';
+        html += '<div class="question">' +
+          (state.easyMode ? "Easy mode — four games to choose from" : "Hard mode — pick one of seven games") +
+          '</div>';
+        r.preview.forEach(function (line) {
+          html += '<div class="line">' + escapeHtml(line) + '</div>';
+        });
+        html += '</div>';
+
+        html += '<div class="choices' + (state.easyMode ? '' : ' choices-hard') + '" id="choices">';
+        choices.forEach(function (id) {
+          var g = gamesById[id];
+          html += '<button type="button" class="choice" data-id="' + escapeHtml(id) + '">' + escapeHtml(g ? g.title : id) + '</button>';
+        });
+        html += '</div>';
+
+        html += '<div class="reveal hidden" id="reveal"></div>';
+        html += '<div class="controls"><button class="btn" id="nextBtn" disabled>Next</button></div>';
+
+        app.innerHTML = html;
+        syncScore();
+        syncEasyModeUi();
+
+        var buttons = app.querySelectorAll('.choice');
+        buttons.forEach(function (btn) {
+          btn.addEventListener('click', function () { submit(btn.getAttribute('data-id')); });
+        });
+        document.getElementById('nextBtn').addEventListener('click', nextRound);
+      }
+
+      function submit(pickedId) {
+        if (state.answered) return;
+        state.answered = true;
+        var r = state.current;
+        var isCorrect = pickedId === r.gameId;
+        if (isCorrect) state.correct++;
+        else state.wrong++;
+        syncScore();
+
+        var buttons = app.querySelectorAll('.choice');
+        buttons.forEach(function (btn) {
+          btn.disabled = true;
+          var id = btn.getAttribute('data-id');
+          if (id === r.gameId) btn.classList.add('correct');
+          else if (id === pickedId) btn.classList.add('wrong');
+        });
+
+        var reveal = document.getElementById('reveal');
+        var correctTitle = (gamesById[r.gameId] || {}).title || r.gameId;
+        var pickedTitle = (gamesById[pickedId] || {}).title || pickedId;
+
+        var previewSet = {};
+        r.preview.forEach(function (p) { previewSet[p] = true; });
+
+        var html = '';
+        html += '<div class="reveal-head">';
+        html += '<div>';
+        html += '<div class="reveal-title">' + escapeHtml(correctTitle) + '</div>';
+        html += '<div class="reveal-room">' + escapeHtml(r.scriptDisplay) + '</div>';
+        html += '</div>';
+        html += '<div class="reveal-path">' + escapeHtml(r.scriptPath) + '</div>';
+        html += '</div>';
+
+        if (isCorrect) {
+          html += '<div class="verdict good">Correct!</div>';
+        } else {
+          html += '<div class="verdict bad">Wrong - you picked ' + escapeHtml(pickedTitle) + '.</div>';
+        }
+
+        html += '<div class="scene">';
+        r.full.forEach(function (row) {
+          var cls = previewSet[row.text] ? ' preview-line' : '';
+          html += '<div class="row' + cls + '">';
+          html += '<span class="speaker">' + escapeHtml(row.speaker) + '</span>';
+          html += '<span class="text">' + escapeHtml(row.text) + '</span>';
+          html += '</div>';
+        });
+        html += '</div>';
+
+        reveal.innerHTML = html;
+        reveal.classList.remove('hidden');
+
+        var nextBtn = document.getElementById('nextBtn');
+        nextBtn.disabled = false;
+        nextBtn.focus();
+        syncEasyModeUi();
+      }
+
+      if (easyModeBtn) {
+        easyModeBtn.addEventListener('click', function () {
+          state.easyMode = !state.easyMode;
+          if (!state.answered) render();
+          else syncEasyModeUi();
+        });
+      }
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          if (state.answered) {
+            var nextBtn = document.getElementById('nextBtn');
+            if (nextBtn && !nextBtn.disabled && document.activeElement === nextBtn) {
+              return;
+            }
+            if (nextBtn && !nextBtn.disabled) {
+              e.preventDefault();
+              nextRound();
+            }
+          }
+        }
+      });
+
+      syncEasyModeUi();
+      nextRound();
+    })();
+  </script>
+</body>
+</html>
